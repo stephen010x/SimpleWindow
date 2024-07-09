@@ -283,18 +283,6 @@ LRESULT CALLBACK swin_DefaultWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPA
             pEvent->mouse_delta_y = HIWORD(lParam) - pEvent->mouse_y;
             pEvent->mouse_x = LOWORD(lParam);
             pEvent->mouse_y = HIWORD(lParam);
-            //WINEVENT event;
-            //POINT mpoint;
-            //GetCursorPos(&mpoint);
-            //event.mouse_x = LOWORD(lParam);
-            //event.mouse_y = HIWORD(lParam);
-            //event.mouse_screen_x = mpoint.x;
-            //event.mouse_screen_y = mpoint.y;
-            // delta uses the screen instead of client window coords
-            // so as to make sure velocity can be captured from
-            // outside the screen (ideally)
-            //event.mouse_delta_x = mpoint.x - lmpoint.x;
-            //event.mouse.delta_y = mpoint.y - lmpoint.y;
             phwin->eventcalls(phwin, pEvent);
             return 0;
         case WM_MOUSEHWHEEL:

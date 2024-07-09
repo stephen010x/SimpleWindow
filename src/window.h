@@ -80,23 +80,6 @@ enum WINSHOW_FLAGS {
     WIN_RESTORE = 9,
 };
 
-/*enum EVENT_KEYFLAGS {
-    KEY_NULL = 0,
-    KEY_DOWN,
-    KEY_UP,
-    BTN_NULL = 0,
-    BTN_DOWN,
-    BTN_UP,
-};
-
-enum EVENT_MOUSEFLAGS {
-    MOUSE_NULL = 0,
-    MOUSE_MOVE,
-    MOUSE_SCROLL,
-    MOUSE_BTN_DOWN,
-    MOUSE_BTN_UP,
-};*/
-
 enum MOUSE_CLICKCODES {
     MOUSE_RIGHT = 1,
     MOUSE_LEFT,
@@ -201,27 +184,6 @@ typedef struct {
     // Genius. No heap required.
     char _string_reserved_[256];
 } WINDESC;
-
-/*typedef struct {
-    int etype;
-    union {
-        struct { //consider: mwX mwY msX msY
-            //int mouse_win_x;
-            //int mouse_win_y;
-            //int mouse_screen_x;
-            //int mouse_screen_y;
-            int mouse_x;
-            int mouse_y;
-            int mouse_delta_x;
-            int mouse_delta_y;
-            int __mouse_prev_x;
-            int __mouse_prev_y;
-        };
-        int wheel_delta;
-        int mouse_button;
-        int keycode;
-    };
-} WINEVENT;*/
 
 
 int winnew_ex(HWIN* phwin, char* title, int x, int y, int width, int height);
