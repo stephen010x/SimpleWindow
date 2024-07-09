@@ -1,3 +1,8 @@
+/* NOTES:
+ * The sibling library to this should be called SimpleRend, or "rend"
+ */
+
+
 #ifndef WINDOW_H
 #define WINDOW_H
 
@@ -35,22 +40,11 @@ enum WINSET_FLAGS {
     SET_TITLE = 1<<0,
     SET_POS = 1<<1,
     SET_SIZE = 1<<2,
-    //SET_WIDTH = 1<<1,
-    //SET_HEIGHT = 1<<2,
-    //SET_X = 1<<3,
-    //SET_Y = 1<<4,
-    SET_MOUSEEVENT = 1<<5,
-    SET_KEYEVENT = 1<<6,
+    //SET_MOUSEEVENT = 1<<5,
+    //SET_KEYEVENT = 1<<6,
     SET_ICON = 1<<7, // unimplemented
     SET_ALL = 0xFFFFFFFF
 };
-
-/*enum WINEVENT_FLAGS {
-    GENERIC_EVENT = 0,
-    MOUSE_EVENT,
-    KEY_EVENT,
-    DRAW_EVENT,
-};*/
 
 enum WINEVENT_FLAGS {
     EVENT_ALL = 0,
@@ -60,18 +54,19 @@ enum WINEVENT_FLAGS {
     EVENT_MOUSE_BTN,
     EVENT_MOUSE_BTN_DOWN,
     EVENT_MOUSE_BTN_UP,
-    EVENT_MOUSE_SCROLL,
+    EVENT_MOUSE_WHEEL,
     EVENT_KEY,
     EVENT_KEY_DOWN,
     EVENT_KEY_UP,
     EVENT_DRAW,
+    EVENT_CLOSE,
+    EVENT_KILL,
 }
 
 enum NEWWIN_FLAGS {
     WIN_NONE = 0,
-    //WIN_SHOW = 1<<0,
-    WIN_BORDERLESS = 1<<1,
-    WIN_FULLSCREEN = 1<<2,
+    WIN_BORDERLESS = 1<<0, // some of these are not implemented yet
+    WIN_FULLSCREEN = 1<<1,
     WIN_OPENGL = 0b01,
     WIN_SREND = 0b10,
 };
@@ -85,10 +80,13 @@ enum WINSHOW_FLAGS {
     WIN_RESTORE = 9,
 };
 
-enum EVENT_KEYFLAGS {
+/*enum EVENT_KEYFLAGS {
     KEY_NULL = 0,
     KEY_DOWN,
     KEY_UP,
+    BTN_NULL = 0,
+    BTN_DOWN,
+    BTN_UP,
 };
 
 enum EVENT_MOUSEFLAGS {
@@ -97,7 +95,7 @@ enum EVENT_MOUSEFLAGS {
     MOUSE_SCROLL,
     MOUSE_BTN_DOWN,
     MOUSE_BTN_UP,
-};
+};*/
 
 enum MOUSE_CLICKCODES {
     MOUSE_RIGHT = 1,
@@ -109,14 +107,26 @@ enum MOUSE_CLICKCODES {
 #define SET_POS (SET_X | SET_Y)
 #define SET_CALLBACKS (SET_MOUSE_CALLBACK | SET_KEYBOARD_CALLBACK)
 
-typedef void (WINCALLBACK*)(WINHANDLE* phwin, WINEVENT* pwine);
+typedef int (WINCALLBACK*)(WINHANDLE* phwin, WINEVENT* pwine);
 
-/*typedef struct {
-    int left;
-    int top;
-    int right;
-    int bottom;
-} WINRECT;*/
+
+typedef struct {
+    int etype;
+    struct {
+        // needs to be persistant
+        int mouse_x;
+        int mouse_y;
+    };
+    union {
+        struct {
+            int mouse_delta_x;
+            int mouse_delta_y;
+        }
+        int wheel_delta;
+        int btncode;
+        int keycode;
+    }; 
+} WINEVENT;
 
 typedef struct {
     #ifdef _WINDOWS_
@@ -134,35 +144,11 @@ typedef struct {
         WINCALLBACK key_up;
         WINCALLBACK key_down;
         WINCALLBACK draw;
-    } event;
-    /*struct {
-        struct {
-            WINCALLBACK move;
-            WINCALLBACK button;
-            WINCALLBACK scroll;
-        } mouse;
-        struct {
-            WINCALLBACK up
-        } keyboard;
-        WINCALLBACK draw;
-    } event;*/
-    /*union {
-        struct {
-            WINCALLBACK generic;
-            WINCALLBACK mouse;
-            WINCALLBACK keyboard;
-            WINCALLBACK draw;
-        } event;
-        struct {
-            WINCALLBACK genevent;
-            WINCALLBACK mouseevent;
-            WINCALLBACK keyevent;
-            WINCALLBACK drawevent;
-            //WINCALLBACK frameevent; //add using rend
-        };
-    };*/
-    //WINCALLBACK genevent;
+        WINCALLBACK close;
+        WINCALLBACK kill;
+    } eventcalls;
     WNDCLASS* winclass;
+    WINEVENT event;
 } HWIN;
 
 typedef struct {
@@ -219,39 +205,23 @@ typedef struct {
 /*typedef struct {
     int etype;
     union {
-        union {
-            struct {
-                int win_x;
-                int win_y;
-                int screen_x;
-                int screen_y;
-                int delta_x;
-                int delta_y;
-            };
-            struct {
-                int wheel_delta;
-            };
-        } mouse;
-        int keycode;
-    };
-} WINEVENT;*/
-
-typedef struct {
-    int etype;
-    union {
-        struct { /*consider: mwX mwY msX msY*/
-            int mouse_win_x;
-            int mouse_win_y;
-            int mouse_screen_x;
-            int mouse_screen_y;
+        struct { //consider: mwX mwY msX msY
+            //int mouse_win_x;
+            //int mouse_win_y;
+            //int mouse_screen_x;
+            //int mouse_screen_y;
+            int mouse_x;
+            int mouse_y;
             int mouse_delta_x;
             int mouse_delta_y;
+            int __mouse_prev_x;
+            int __mouse_prev_y;
         };
         int wheel_delta;
         int mouse_button;
         int keycode;
     };
-} WINEVENT;
+} WINEVENT;*/
 
 
 int winnew_ex(HWIN* phwin, char* title, int x, int y, int width, int height);
@@ -263,12 +233,6 @@ int winevent(HWIN* phwin, WINCALLBACK callback, int EFLAG);
 int winclose(HWIN* phwin);
 int winwait(HWIN* phwin); // waits until window closes
 //int winstep(); // alternative to loop thread? Nah.
-
-/*char* winget_title(HWIN* hwin);
-int winget_width(HWIN* hwin);
-int winget_height(HWIN* hwin);
-int winget_xpos(HWIN* hwin);
-int winget_ypos(HWIN* hwin);*/
 
 /*int winset_title(HWIN* phwin, char* title);
 int winset_size(HWIN* phwin, int width, int height);
@@ -287,11 +251,5 @@ __FORCE_INLINE__ int winset_pos(HWIN* phwin, int x, int y) {
 __FORCE_INLINE__ int winset_rect(HWIN* phwin, int x, int y, int width, int height) {
     return SetWindowPos(phwin->hwnd, NULL, x, y, width, height, SWP_NOZORDER) ? 0 : 1;
 }
-
-
-// NOTES:
-// I think I will need to multithread here
-// To acheive a framerate will probably require opengl
-// The sibling library to this should be called SimpleRend, or "rend"
 
 #endif

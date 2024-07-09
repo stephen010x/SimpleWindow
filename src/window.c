@@ -1,3 +1,9 @@
+/* TODO:
+ * Add message box capabilities
+ * MessageBox(hwnd, "Really quit?", "My application", MB_OKCANCEL)
+ * Add timer capabilities, perhaps as a sister library
+ */
+
 #include <windows.h>
 #include <stdbool.h>
 #include "window.h"
@@ -11,6 +17,15 @@ ATOM WINCLASS_DEFAULT;
 
 int swin_init(HWIN* hwin);
 DWORD WINAPI msghandler_loop(LPVOID lpParam);
+LRESULT CALLBACK swin_DefaultWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
+
+__FORCE_INLINE__ void put_windata(HWND hwnd, void* pdata) {
+    SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)pdata);
+}
+__FORCE_INLINE__ void* get_windata(HWND hwnd) {
+    return GetWindowLongPtr(hwnd, GWLP_USERDATA);
+}
 
 
 WINDESC WINDESC_DEFAULT = {
@@ -24,7 +39,7 @@ WINDESC WINDESC_DEFAULT = {
 
 int winnew(HWIN* phwin, WINDESC* pwind) {
     static bool startup = true;
-    const DWORD default_style = WS_OVERLAPPEDWINDOW | WS_MAXIMIZE | WS_VISIBLE;
+    #define SWIN_DEFAULT_STYLE = WS_OVERLAPPEDWINDOW | WS_MAXIMIZE | WS_VISIBLE;
     HINSTANCE hinst = GetModuleHandle(NULL);
     if (startup == true) {
         int err = swin_init(hinst);
@@ -34,10 +49,12 @@ int winnew(HWIN* phwin, WINDESC* pwind) {
     }
     if (pwind == NULL)
         pwind = WINDESC_DEFAULT;
+    if (phwin->winclass == NULL)
+        phwin->winclass = WINCLASS_DEFAULT;
     phwin->hwnd = CreateWindow(
-        WINCLASS_DEFAULT,   // lpClassName
+        phwin->winclass,    // lpClassName
         pwind->title,       // lpWindowName
-        default_style,      // dwStyle
+        SWIN_DEFAULT_STYLE, // dwStyle
         pwind->x,           // x
         pwind->y,           // y
         pwind->width,       // nWidt
@@ -49,13 +66,13 @@ int winnew(HWIN* phwin, WINDESC* pwind) {
     );
     if (phwin->hwnd != NULL)
         return WERR_CREATEWINDOW;
+    put_windata(phwin->hwnd, &phwin);
     phwin->msgthread = CreateThread(NULL, 0, msghandler_loop, phwin, NULL);
     if (phwin->msgthread == NULL) {
         DestroyWindow(phwin->hwnd);
         return WERR_CREATE_MSGTHREAD;
     }
-    if (phwin->winflag & ~WIN_SHOW)
-        winshow(&hwin, true);
+    winshow(&hwin, phwin->showflag);
     return 0;
 }
 
@@ -102,60 +119,57 @@ int winset(HWIN* phwin, WINDESC* pwind, int SFLAG) {
         return winset_size(phwin, pwind->width, pwind->height);
     return 0;
 }
-/*
-    EVENT_ALL = 0,
-    EVENT_MOUSE,
-    EVENT_MOUSE_MOVE,
-    EVENT_MOUSE_BTN,
-    EVENT_MOUSE_BTN_DOWN,
-    EVENT_MOUSE_BTN_UP,
-    EVENT_MOUSE_SCROLL,
-    EVENT_KEY,
-    EVENT_KEY_DOWN,
-    EVENT_KEY_UP,
-    EVENT_DRAW,
-*/
+
 int winevent(HWIN* phwin, WINCALLBACK callback, int EFLAG) {
     switch (EFLAG) {
         case EVENT_ALL:
-            phwin->event.draw = callback;
+            phwin->eventcalls.draw = callback;
+            phwin->eventcalls.close = callback;
+            phwin->eventcalls.kill = callback;
         case EVENT_INPUT:
-            phwin->event.key_down = callback;
-            phwin->event.key_up = callback;
+            phwin->eventcalls.key_down = callback;
+            phwin->eventcalls.key_up = callback;
         case EVENT_MOUSE:
-            phwin->event.mouse_move = callback;
-            phwin->event.mouse_btn_down = callback;
-            phwin->event.mouse_btn_up = callback;
-            phwin->event.mouse_scroll = callback;
+            phwin->eventcalls.mouse_move = callback;
+            phwin->eventcalls.mouse_btn_down = callback;
+            phwin->eventcalls.mouse_btn_up = callback;
+            phwin->eventcalls.mouse_scroll = callback;
             break;
         case EVENT_MOUSE_MOVE:
-            phwin->event.mouse_move = callback;
+            phwin->eventcalls.mouse_move = callback;
             break;
         case EVENT_MOUSE_BTN:
-            phwin->event.mouse_btn_down = callback;
-            phwin->event.mouse_btn_up = callback;
+            phwin->eventcalls.mouse_btn_down = callback;
+            phwin->eventcalls.mouse_btn_up = callback;
             break;
         case EVENT_MOUSE_BTN_DOWN:
-            phwin->event.mouse_btn_down = callback;
+            phwin->eventcalls.mouse_btn_down = callback;
             break;
         case EVENT_MOUSE_BTN_UP:
-            phwin->event.mouse_btn_up = callback;
+            phwin->eventcalls.mouse_btn_up = callback;
             break;
         case EVENT_MOUSE_SCROLL:
-            phwin->event.mouse_scroll = callback;
+            phwin->eventcalls.mouse_scroll = callback;
             break;
         case EVENT_KEY:
-            phwin->event.key_down = callback;
-            phwin->event.key_up = callback;
+            phwin->eventcalls.key_down = callback;
+            phwin->eventcalls.key_up = callback;
             break;
         case EVENT_KEY_DOWN:
-            phwin->event.key_down = callback;
+            phwin->eventcalls.key_down = callback;
             break;
         case EVENT_KEY_UP:
-            phwin->event.key_up = callback;
+            phwin->eventcalls.key_up = callback;
             break;
         case EVENT_DRAW:
-            phwin->event.draw = callback;
+            phwin->eventcalls.draw = callback;
+            break;
+        case EVENT_CLOSE:
+            // have it so that returning 1 on close will prevent kill.
+            phwin->eventcalls.close = callback;
+            break;
+        case EVENT_KILL:
+            phwin->eventcalls.kill = callback;
             break;
         default:
             return WERR_INVALIDPARAM;
@@ -172,11 +186,15 @@ int winclose(HWIN* phwin) {
         case WAIT_FAILED:
             return WERR_WINCLOSE_FAILED;
     }
+    CloseHandle(hThread);
     return 0;
 }
 
 int winwait(HWIN* phwin) {
-    return WaitForSingleObject(phwin->msgthread, INFINITE) ? WERR_WINWAIT : 0;
+    DWORD ret = WaitForSingleObject(phwin->msgthread, INFINITE) ? WERR_WINWAIT : 0;
+    if (ret == 0)
+        CloseHandle(hThread);
+    return (int)ret;
 }
 
 
@@ -199,260 +217,122 @@ int swin_init(HWIN* hwin) {
     return (WINCLASS_DEFAULT != 0) ? 0 : WERR_REGISTERCLASS;
 }
 
-DWORD WINAPI msghandler_loop(LPVOID lpParam);
-
-
-/*
-ShowWindow(hwnd, nCmdShow);
-
-// Step 3: The Message Loop
-MSG msg = { 0 };
-while (GetMessage(&msg, NULL, 0, 0)) {
-    TranslateMessage(&msg);
-    DispatchMessage(&msg);
-}
-
-// Wait for the thread to finish
-WaitForSingleObject(hThread, INFINITE);
-
-// Close the thread handle
-CloseHandle(hThread);
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#ifdef NONE
-
-
-HWIN hwin;
-int winnew_ex(HWIN* hwin, char* title, int x, int y, int width, int height);
-int winnew(HWIN* hwin);
-int winshow(HWIN* hwin, BOOL show);
-
-WINDESC //(used for window creation or advanced window sets)
-
-//create_window()
-
-
-
-
-
-
-
-
-
-
-
-
-
-#include <windows.h>
-#include <stdbool.h>
-
-
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-
-
-// on first call, inits all the default windows descriptors
-// creates a new window. Accepts a descriptor struct.
-// If descriptor is null, then just use default.
-int winnew(WINHANDLE* pwinh, WINDESC* pwind) {
-    static bool startup = true;
-    HINSTANCE hinst = GetModuleHandle(NULL);
-    if (startup == true) {
-        startup == false
-        swin_init(hinst);
-    }
-    if (pwind == NULL)
-        pwind = WINDESC_DEFAULT;
-    
-}
-
-int winshow(bool show) {}
-
-ATOM WINCLASS_DEFAULT;
-
-int swin_init(HINSTANCE hinst) {
-    WNDCLASS wc = {
-        .style = CS_HREDRAW | CS_VREDRAW;
-        .lpfnWndProc = swin_defaultproc;
-        .cbClsExtra = 0;
-        .cbWndExtra = 0;
-        .hInstance = hinst;
-        .hIcon = NULL;
-        .hCursor = NULL;
-        .hbrBackground = NULL;
-        .lpszMenuName = NULL;
-        .lpszClassName = "Default Window Class";
-    }
-    ATOM WINCLASS_DEFAULT = RegisterClass(&wc);
-}
-
-int windel(WINHANDLE* pwh) {
-    
-}
-
-int winpropget(WINHANDLE* pwh, WINPROP* pwp) {}
-int winpropset(WINHANDLE* pwh, WINPROP* pwp) {}
-
-int wingetsize();
-int wingetpos();
-
-
-int wincallback() {
-    
-}
-
-#define EXTWINSTYLES_DEFAULT 0
-
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-
-    
-
-    // Step 2: Creating the Window
-    HWND hwnd = CreateWindowEx(
-        EXTWINSTYLES_DEFAULT,
-        WINCLASS_DEFAULT,               // Window class name
-        "Learn to Program Windows",     // Window title
-        WS_OVERLAPPEDWINDOW,            // Window style
-
-        // Position and size
-        CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-
-        NULL,       // Parent window    
-        NULL,       // Menu
-        hInstance,  // Instance handle
-        NULL        // Additional application data
-    );
-
-    if (hwnd == NULL) {
-        return 0;
-    }
-
-    ShowWindow(hwnd, nCmdShow);
-
-    // Step 3: The Message Loop
-    MSG msg = { 0 };
-    while (GetMessage(&msg, NULL, 0, 0)) {
+DWORD WINAPI msghandler_loop(LPVOID lpParam) {
+    MSG msg;
+    // note that second parameter can optionally be null
+    // however, I only want this thread to handle messages
+    // for it's assigned window.
+    while (GetMessage(&msg, ((HWIN)lpParam).hwnd, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
-
     return 0;
 }
 
-// Step 4: Implementing the Window Procedure
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+LRESULT CALLBACK swin_DefaultWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    HWIN* phwin = get_windata(hwnd);
+    // experimenting with capitals in my variables
+    // as they might simply look better
+    // Though I find it harder to type so far
+    WINEVENT* pEvent = &phwin->event;
     switch (uMsg) {
+        case WM_CREATE:
+            POINT mpoint;
+            GetCursorPos(&mpoint);
+            ScreenToClient(hwnd, &mpoint);
+            pEvent->mouse_x = mpoint.x;
+            pEvent->mouse_y = mpoint.y;
+            return 0;
+        case WM_MOVE:
+            return 0;
+        case WM_SIZE:
+            return 0;
         case WM_DESTROY:
             PostQuitMessage(0);
             return 0;
-
-        case WM_PAINT: {
+        case WM_PAINT:
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
-
-            // All painting occurs here
             FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW + 1));
-
             EndPaint(hwnd, &ps);
-        }
-        return 0;
-
-        case WM_CLOSE:
-            if (MessageBox(hwnd, "Really quit?", "My application", MB_OKCANCEL) == IDOK) {
-                DestroyWindow(hwnd);
-            }
-            // Else: user canceled. Do nothing.
             return 0;
-
-        // Handle other messages here
-
+        case WM_CLOSE:
+            DestroyWindow(hwnd);
+            return 0;
+        case WM_TIMER:
+            // wParam (timer identifier)
+            // lParam (pointer to callback)
+            return 0;
+        case WM_KEYDOWN:
+            // wParam (virtual keycode)
+            pEvent->etype = EVENT_KEY_UP;
+            pEvent->keycode = wParam;
+            phwin->eventcalls(phwin, pEvent);
+            return 0;
+        case WM_KEYUP:
+            // wParam (virtual keycode)
+            pEvent->etype = EVENT_KEY_UP;
+            pEvent->keycode = wParam;
+            phwin->eventcalls(phwin, pEvent);
+            return 0;
+        case WM_MOUSEMOVE:
+            // LOWORD(lParam); client win x
+            // HIWORD(lParam); client win y
+            pEvent->etype = EVENT_MOUSE_MOVE;
+            pEvent->mouse_delta_x = LOWORD(lParam) - pEvent->mouse_x;
+            pEvent->mouse_delta_y = HIWORD(lParam) - pEvent->mouse_y;
+            pEvent->mouse_x = LOWORD(lParam);
+            pEvent->mouse_y = HIWORD(lParam);
+            //WINEVENT event;
+            //POINT mpoint;
+            //GetCursorPos(&mpoint);
+            //event.mouse_x = LOWORD(lParam);
+            //event.mouse_y = HIWORD(lParam);
+            //event.mouse_screen_x = mpoint.x;
+            //event.mouse_screen_y = mpoint.y;
+            // delta uses the screen instead of client window coords
+            // so as to make sure velocity can be captured from
+            // outside the screen (ideally)
+            //event.mouse_delta_x = mpoint.x - lmpoint.x;
+            //event.mouse.delta_y = mpoint.y - lmpoint.y;
+            phwin->eventcalls(phwin, pEvent);
+            return 0;
+        case WM_MOUSEHWHEEL:
+            pEvent->etype = EVENT_MOUSE_WHEEL;
+            pEvent->wheel_delta = HIWORD(wParam); // / WHEEL_DELTA;
+            phwin->eventcalls(phwin, pEvent);
+            return 0;
+        case WM_LBUTTONDOWN:
+            pEvent->etype = EVENT_MOUSE_BTN_DOWN;
+            pEvent->btncode = MOUSE_LEFT;
+            phwin->eventcalls(phwin, pEvent);
+            return 0;
+        case WM_LBUTTONUP:
+            pEvent->etype = EVENT_MOUSE_BTN_UP;
+            pEvent->btncode = MOUSE_LEFT;
+            phwin->eventcalls(phwin, pEvent);
+            return 0;
+        case WM_RBUTTONDOWN:
+            pEvent->etype = EVENT_MOUSE_BTN_DOWN;
+            pEvent->btncode = MOUSE_RIGHT;
+            phwin->eventcalls(phwin, pEvent);
+            return 0;
+        case WM_RBUTTONUP:
+            pEvent->etype = EVENT_MOUSE_BTN_UP;
+            pEvent->btncode = MOUSE_RIGHT;
+            phwin->eventcalls(phwin, pEvent);
+            return 0;
+        case WM_MBUTTONDOWN:
+            pEvent->etype = EVENT_MOUSE_BTN_DOWN;
+            pEvent->btncode = MOUSE_MIDDLE;
+            phwin->eventcalls(phwin, pEvent);
+            return 0;
+        case WM_MBUTTONUP:
+            pEvent->etype = EVENT_MOUSE_BTN_UP;
+            pEvent->btncode = MOUSE_MIDDLE;
+            phwin->eventcalls(phwin, pEvent);
+            return 0;
         default:
             return DefWindowProc(hwnd, uMsg, wParam, lParam);
     }
 }
-
-
-//////////////////////////////////////////////
-//////////////////////////////////////////////
-//////////////////////////////////////////////
-
-enum {
-    SET_NONE = 0;
-    SET_TITLE = 1<<0;
-    SET_WIDTH = 1<<1;
-    SET_HEIGHT = 1<<2;
-    SET_X = 1<<3;
-    SET_Y = 1<<4;
-    SET_MOUSE_CALLBACK = 1<<5;
-    SET_KEYBOARD_CALLBACK = 1<<6;
-}
-
-#define SET_SIZE (SET_WIDTH | SET_HEIGHT)
-#define SET_POS (SET_X | SET_Y)
-#define SET_CALLBACKS (SET_MOUSE_CALLBACK | SET_KEYBOARD_CALLBACK)
-#define SET_ALL 0xFFFFFFFF
-
-
-
-// this is to help me figure out what gui I want
-int example() {
-    WINHANDLE hwin;
-    WNDCLASS wc;
-    WINDESC wind = {
-        .title = "my window";
-        .w = 100;
-        .h = 100;
-        .x = 100;
-        .y = 100;
-        .callback = {
-            .mouseup = mu_fun;
-            .mousedown = md_fun;
-            .keyup = ku_fun;
-            .keydown = kd_fun;
-            .mouseclick = mb_fun;
-        }
-    }
-    winnew(&hwin, &wind, &wc);
-    winshow(&hwin);
-    winset_width(&hwin, 100);
-    winset(&hwin, WIDTH_MEMBER, 100);
-    winattach(&hwin, MOUSE_CALLBACK, mymousecallback);
-    
-    
-    
-    
-    
-    WINHANDLE hwin;
-    WNDCLASS wc;
-    WINDESC wind = {
-        .title = "my window";
-    }
-    
-    winset(&hwin, &wind);
-}
-
-
-#endif
