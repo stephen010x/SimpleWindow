@@ -3,13 +3,15 @@
  */
 
 
-#ifndef WINDOW_H
-#define WINDOW_H
+#ifndef SIMPLEWINDOW_H
+#define SIMPLEWINDOW_H
 
 #define __FORCE_INLINE__ __attribute__((always_inline))
+#DEFINE __DLL_EXPORT__ __declspec(dllexport)
 #define WIN_DEFAULT 0x80000000
 
 extern WNDCLASS;
+
 typedef union {
     int value;
     struct {
@@ -186,6 +188,7 @@ typedef struct {
 } WINDESC;
 
 
+#ifdef SW_STATICBUILD
 int winnew_ex(HWIN* phwin, char* title, int x, int y, int width, int height);
 int winnew(HWIN* phwin, WINDESC* pwind);
 int winshow(HWIN* phwin, int sflag);
@@ -200,6 +203,16 @@ int winwait(HWIN* phwin); // waits until window closes
 int winset_size(HWIN* phwin, int width, int height);
 int winset_pos(HWIN* phwin, int x, int y);
 int winset_rect(HWIN* phwin, int x, int y, int width, int height);*/
+#else
+__DLL_EXPORT__ int winnew_ex(HWIN* phwin, char* title, int x, int y, int width, int height);
+__DLL_EXPORT__ int winnew(HWIN* phwin, WINDESC* pwind);
+__DLL_EXPORT__ int winshow(HWIN* phwin, int sflag);
+__DLL_EXPORT__ int winget(HWIN* phwin, WINDESC* pwind);
+__DLL_EXPORT__ int winset(HWIN* phwin, WINDESC* pwind, int SFLAG);
+__DLL_EXPORT__ int winevent(HWIN* phwin, WINCALLBACK callback, int EFLAG);
+__DLL_EXPORT__ int winclose(HWIN* phwin);
+__DLL_EXPORT__ int winwait(HWIN* phwin);
+#endif
 
 __FORCE_INLINE__ int winset_title(HWIN* phwin, char* title) {
     return SetWindowText(phwin->hwnd, title) ? 0 : 1;

@@ -1,6 +1,6 @@
 @echo off
 
-set "CC=emcc"
+set "CC=gcc"
 set "TEMPDIR=%CD%\temp"
 set "BINDIR=%CD%\binary"
 set "BUILDTOOLSDIR=%CD%\buildtools"
@@ -10,11 +10,8 @@ set "LIBFLAGS="
 set "CFLAGS=-mx32"
 set "LFLAGS="
 REM BFLAGS for both compiler and linker
-REM Considered safest to pass all -s flags to both
-set "BFLAGS=-s WASM=1 -s MAX_WEBGL_VERSION=2"
+set "BFLAGS="
 
-
-set 
 
 if defined  %1 (
     set fun=%1
@@ -34,7 +31,7 @@ call :build
 exit /b %ERRORLEVEL%
 
 :release
-set "BFLAGS=%BFLAGS% -O3"
+set "BFLAGS=%BFLAGS% -Os"
 call :build
 exit /b %ERRORLEVEL%
 

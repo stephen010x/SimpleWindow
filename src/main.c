@@ -6,7 +6,7 @@
 
 #include <windows.h>
 #include <stdbool.h>
-#include "window.h"
+#include "../include/window.h"
 
 #if WIN_DEFAULT != CW_USEDEFAULT
 #pragma GCC error "WIN_DEFAULT must be equal to CW_USEDEFAULT\n\tWIN_DEFAULT is" \
