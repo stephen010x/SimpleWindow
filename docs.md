@@ -54,18 +54,16 @@ struct WINEVENT {
 ```
 WINEVENT (WINdow EVENT) is a structure used for handling the events handled by SimpleWindow through callbacks.
 
-`etype` can be one of these enumerators:
-```
-    EVENT_MOUSE_MOVE
-    EVENT_MOUSE_BTN_DOWN
-    EVENT_MOUSE_BTN_UP
-    EVENT_MOUSE_WHEEL
-    EVENT_KEY_DOWN
-    EVENT_KEY_UP
-    EVENT_DRAW
-    EVENT_CLOSE
-    EVENT_KILL
-```
+`etype` can be one of these enumerators: \
+&emsp; `EVENT_MOUSE_MOVE` \
+&emsp; `EVENT_MOUSE_BTN_DOWN` \
+&emsp; `EVENT_MOUSE_BTN_UP` \
+&emsp; `EVENT_MOUSE_WHEEL` \
+&emsp; `EVENT_KEY_DOWN` \
+&emsp; `EVENT_KEY_UP` \
+&emsp; `EVENT_DRAW` \
+&emsp; `EVENT_CLOSE` \
+&emsp; `EVENT_KILL`
 
 ---
 
@@ -99,28 +97,22 @@ struct WINDESC {
 
 WINDESC (WINdow DESCriptor) is a structure used to describe the properties of the window to be created. The use of this structure is optional, and can be replaced by [winnew_ex(...)], which will populate this structure for you.
 
-`rendtype` can be one of these enumerators:
-```
-    WIN_OPENGL
-    WIN_SREND
-```
+`rendtype` can be one of these enumerators: \
+&emsp; `WIN_OPENGL` \
+&emsp; `WIN_SREND`
 
-`showflag` can be one of these enumerators:
-```
-    WIN_HIDE
-    WIN_NORMAL
-    WIN_MIN
-    WIN_MAX
-    WIN_SHOW
-    WIN_RESTORE
-```
+`showflag` can be one of these enumerators: \
+&emsp; `WIN_HIDE` \
+&emsp; `WIN_NORMAL` \
+&emsp; `WIN_MIN` \
+&emsp; `WIN_MAX` \
+&emsp; `WIN_SHOW` \
+&emsp; `WIN_RESTORE`
 
-`winflag` can be multiple of these enumerators using bitwise 'or':
-```
-    WIN_NONE
-    WIN_BORDERLESS
-    WIN_FULLSCREEN
-```
+`winflag` can be multiple of these enumerators using bitwise 'or': \
+&emsp; `WIN_NONE` \
+&emsp; `WIN_BORDERLESS` \
+&emsp; `WIN_FULLSCREEN`
 
 ---
 
@@ -136,16 +128,16 @@ int winnew_ex(HWIN* phwin, char* title, int x, int y, int width, int height);
 Create a new window. The simplest way to create a window without the need for a [WINDESC]() structure.
 
 **Parameters** \
-    **phwin** pointer to the window handler \
-    **title** title of the window \
-    **x**, **y** x and y coordinate of top left corner of the window \
-    **width**, **height**  - width and height of window \
-    **height** height of window
+&emsp; `phwin` pointer to the window handler \
+&emsp; `title` title of the window \
+&emsp; `x`, `y` x and y coordinate of top left corner of the window \
+&emsp; `width`, `height` width and height of window \
+&emsp; `height` height of window
     
 
 **Return value** \
-    Returns zero if success \
-    Returns nonzero if error
+&emsp; Returns zero if success \
+&emsp; Returns nonzero if error
 
 ---
 
@@ -157,12 +149,12 @@ int winnew(HWIN* phwin, WINDESC* pwind);
 Create a new window
 
 **Parameters** \
-    **phwin** pointer to the window handler \
-    **pwind** pointer to window descriptor
+&emsp; `phwin` pointer to the window handler \
+&emsp; `pwind` pointer to window descriptor
 
 **Return value** \
-    Returns zero if success \
-    Returns nonzero if error
+&emsp; Returns zero if success \
+&emsp; Returns nonzero if error
 
 ---
 
@@ -174,11 +166,11 @@ int winshow(HWIN* phwin, int sflag);
 Primarily used to show or hide a window, but can also fullscreen and minimize windows.
 
 **Parameters** \
-    **phwin** pointer to the window handler \
-    **sflag** expects one of these enumerators, `WIN_HIDE`, `WIN_NORMAL`, `WIN_MIN`, `WIN_MAX`, `WIN_SHOW`, `WIN_RESTORE`
+&emsp; `phwin` pointer to the window handler \
+&emsp; `sflag` expects one of these enumerators, `WIN_HIDE`, `WIN_NORMAL`, `WIN_MIN`, `WIN_MAX`, `WIN_SHOW`, `WIN_RESTORE`
     
 **Return value** \
-    Returns zero
+&emsp; Returns zero
 
 ---
 
@@ -187,14 +179,14 @@ Primarily used to show or hide a window, but can also fullscreen and minimize wi
 int winget(HWIN* phwin, WINDESC* pwind);
 ```
 
-returns a `WINDESC` struct that it populates, describing the target window
+Returns a `WINDESC` struct that it populates, describing the target window
 
 **Parameters** \
-    **phwin** pointer to the window handler \
-    **pwind** (out) pointer to window descriptor
+&emsp; `phwin` pointer to the window handler \
+&emsp; `pwind` (out) pointer to window descriptor
     
 **Return value** \
-    Returns zero
+&emsp; Returns zero
 
 ---
 
@@ -206,13 +198,13 @@ int winset(HWIN* phwin, WINDESC* pwind, int sflag);
 Sets a specific property specified by `sflag` from the `pwind` structure, and applies it to the window.
 
 **Parameters** \
-    **phwin** pointer to the window handler \
-    **pwind** pointer to window descriptor \
-    **sflag** can be one or more of these enumators using bitwise 'or', `SET_NONE`, `SET_TITLE`, `SET_POS`, `SET_SIZE`, `SET_MOUSEEVENT`, `SET_KEYEVENT`, `SET_ALL`
+&emsp; `phwin` pointer to the window handler \
+&emsp; `pwind` pointer to window descriptor \
+&emsp; `sflag` can be one or more of these enumators using bitwise 'or', `SET_NONE`, `SET_TITLE`, `SET_POS`, `SET_SIZE`, `SET_MOUSEEVENT`, `SET_KEYEVENT`, `SET_ALL`
     
 **Return value** \
-    Returns zero if success \
-    Returns nonzero if error
+&emsp; Returns zero if success \
+&emsp; Returns nonzero if error
 
 ---
 
@@ -224,13 +216,13 @@ int winevent(HWIN* phwin, WINCALLBACK callback, int EFLAG);
 Set window event callback
 
 **Parameters** \
-    **phwin** pointer to the window handler \
-    **callback** pointer to event callback function \
-    **eflag** can be one of these enumators, `EVENT_ALL`, `EVENT_INPUT`, `EVENT_MOUSE`, `EVENT_MOUSE_MOVE`, `EVENT_MOUSE_BTN`, `EVENT_MOUSE_BTN_DOWN`, `EVENT_MOUSE_BTN_UP`, `EVENT_MOUSE_WHEEL`, `EVENT_KEY`, `EVENT_KEY_DOWN`, `EVENT_KEY_UP`, `EVENT_DRAW`, `EVENT_CLOSE`, `EVENT_KILL`
+&emsp; `phwin` pointer to the window handler \
+&emsp; `callback` pointer to event callback function \
+&emsp; `eflag` can be one of these enumators, `EVENT_ALL`, `EVENT_INPUT`, `EVENT_MOUSE`, `EVENT_MOUSE_MOVE`, `EVENT_MOUSE_BTN`, `EVENT_MOUSE_BTN_DOWN`, `EVENT_MOUSE_BTN_UP`, `EVENT_MOUSE_WHEEL`, `EVENT_KEY`, `EVENT_KEY_DOWN`, `EVENT_KEY_UP`, `EVENT_DRAW`, `EVENT_CLOSE`, `EVENT_KILL`
     
 **Return value** \
-    Returns zero if success \
-    Returns nonzero if error
+&emsp; Returns zero if success \
+&emsp; Returns nonzero if error
 
 ---
 
