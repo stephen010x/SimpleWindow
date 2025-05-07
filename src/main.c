@@ -64,6 +64,7 @@ int winnew(HWIN* phwin, WINDESC* pwind) {
         hinst,              // hInstance
         NULL                // lpParam
     );
+    #undef SWIN_DEFAULT_STYLE
     if (phwin->hwnd != NULL)
         return WERR_CREATEWINDOW;
     put_windata(phwin->hwnd, &phwin);

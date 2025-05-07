@@ -92,7 +92,7 @@ enum MOUSE_CLICKCODES {
 #define SET_POS (SET_X | SET_Y)
 #define SET_CALLBACKS (SET_MOUSE_CALLBACK | SET_KEYBOARD_CALLBACK)
 
-typedef int (WINCALLBACK*)(WINHANDLE* phwin, WINEVENT* pwine);
+typedef int (*WINCALLBACK)(WINHANDLE* phwin, WINEVENT* pwine);
 
 
 typedef struct {
@@ -138,8 +138,8 @@ typedef struct {
 
 typedef struct {
     union {
-        char* title;
-        char* t;
+        const char* title;
+        const char* t;
     };
     union {
         struct {
@@ -178,12 +178,17 @@ typedef struct {
         };
         int flagword;
     };
+
     // okay...
     // this is actually both a hilarious and
     // a brilliant idea on my part.
     // A string pointer that points to a string
     // within the same struct.
     // Genius. No heap required.
+
+    // *Future me*
+    // I don't really remember what this is for
+    // But hey, good for you.
     char _string_reserved_[256];
 } WINDESC;
 
